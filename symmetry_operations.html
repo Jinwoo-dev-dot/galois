@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>분자 대칭 조작 시각화</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --accent-E: #58a6ff;
+    --accent-Cn: #3fb950;
+    --accent-sigma: #d2a8ff;
+    --accent-i: #ff7b72;
+    --accent-Sn: #ffa657;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    padding: 2rem 2rem 1rem;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+
+  header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+  }
+
+  header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    padding: 1.2rem 2rem 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.6rem 1.4rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+    margin-bottom: -1px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--text);
+    border-bottom-color: var(--active-color, var(--accent-E));
+  }
+
+  .tab-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .content {
+    display: none;
+    padding: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+    animation: fadeIn 0.3s ease;
+  }
+  .content.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .sym-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .sym-name {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+  }
+
+  .desc-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.93rem;
+    line-height: 1.75;
+  }
+
+  .desc-box .rule {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+    margin-top: 0.8rem;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+  }
+
+  .viz-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .viz-area canvas {
+    display: block;
+    border-radius: 8px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.5rem 1.1rem;
+    transition: all 0.15s;
+  }
+
+  .btn:hover {
+    border-color: var(--hover-color, var(--accent-E));
+    color: var(--hover-color, var(--accent-E));
+  }
+
+  .btn.primary {
+    background: var(--primary-color, var(--accent-E));
+    border-color: var(--primary-color, var(--accent-E));
+    color: #000;
+    font-weight: 600;
+  }
+
+  .btn.primary:hover { opacity: 0.85; }
+
+  .examples-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.8rem;
+  }
+
+  .example-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1.1rem;
+  }
+
+  .example-card .molecule {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    color: var(--text);
+    margin-bottom: 0.3rem;
+  }
+
+  .example-card .mol-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-block;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    padding: 0.15rem 0.5rem;
+    margin-right: 0.3rem;
+    margin-bottom: 0.2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .step-indicator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding: 0.3rem 0.8rem;
+    background: var(--surface2);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>분자 대칭 조작 Symmetry Operations</h1>
+  <p>탭을 눌러 각 대칭 조작을 시각적으로 확인하세요</p>
+</header>
+
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="showTab('E')" style="--active-color: var(--accent-E)">
+    <span class="tab-dot" style="color:var(--accent-E)"></span>E &nbsp; 항등 조작
+  </button>
+  <button class="tab-btn" onclick="showTab('Cn')" style="--active-color: var(--accent-Cn)">
+    <span class="tab-dot" style="color:var(--accent-Cn)"></span>Cₙ &nbsp; 회전
+  </button>
+  <button class="tab-btn" onclick="showTab('sigma')" style="--active-color: var(--accent-sigma)">
+    <span class="tab-dot" style="color:var(--accent-sigma)"></span>σ &nbsp; 반사
+  </button>
+  <button class="tab-btn" onclick="showTab('i')" style="--active-color: var(--accent-i)">
+    <span class="tab-dot" style="color:var(--accent-i)"></span>i &nbsp; 반전
+  </button>
+  <button class="tab-btn" onclick="showTab('Sn')" style="--active-color: var(--accent-Sn)">
+    <span class="tab-dot" style="color:var(--accent-Sn)"></span>Sₙ &nbsp; 부적합 회전
+  </button>
+</div>
+
+<!-- ===== E ===== -->
+<div id="tab-E" class="content active">
+  <div class="section-header">
+    <span class="sym-label" style="color:var(--accent-E)">E</span>
+    <span class="sym-name">항등 조작 (Identity Operation)</span>
+  </div>
+  <div class="desc-box">
+    분자에 <strong>아무 것도 하지 않는</strong> 조작입니다. 조작 전과 후가 완전히 동일합니다.<br>
+    모든 분자는 반드시 E를 가집니다 — 군의 <strong>항등원(identity element)</strong> 역할을 합니다.
+    <div class="rule">E ∘ A = A ∘ E = A &nbsp;(어떤 대칭 조작 A와 합성해도 A 그대로)</div>
+  </div>
+  <div class="viz-area">
+    <canvas id="cvE" width="500" height="260"></canvas>
+    <div class="controls">
+      <span class="step-indicator" id="stepE">대기 중</span>
+      <button class="btn primary" style="--primary-color: var(--accent-E)" onclick="animE()">E 조작 실행</button>
+      <button class="btn" style="--hover-color:var(--accent-E)" onclick="resetE()">초기화</button>
+    </div>
+  </div>
+  <div class="examples-grid">
+    <div class="example-card">
+      <div class="molecule">H₂O</div>
+      <div class="mol-desc">E 포함 (모든 분자 포함)<br><span class="badge">C₂ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">NH₃</div>
+      <div class="mol-desc">E 포함<br><span class="badge">C₃ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">CHFClBr</div>
+      <div class="mol-desc">E만 가지는 분자<br><span class="badge">C₁</span> (가장 낮은 대칭)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Cn ===== -->
+<div id="tab-Cn" class="content">
+  <div class="section-header">
+    <span class="sym-label" style="color:var(--accent-Cn)">Cₙ</span>
+    <span class="sym-name">n중 회전 (Proper Rotation)</span>
+  </div>
+  <div class="desc-box">
+    주축을 기준으로 <strong>360°/n</strong> 만큼 회전하여 원래와 구별할 수 없는 상태가 됩니다.<br>
+    n=2이면 180°, n=3이면 120°, n=4이면 90° 회전.<br>
+    <strong>C₃ = 120° 회전 / C₃² = 240° 회전 / C₃³ = 360° = E</strong>
+    <div class="rule">Cₙⁿ = E &nbsp;(n번 반복하면 항등 조작)</div>
+  </div>
+  <div class="viz-area">
+    <canvas id="cvCn" width="500" height="280"></canvas>
+    <div class="controls">
+      <span class="step-indicator" id="stepCn">n=3 (NH₃형 삼각형)</span>
+      <button class="btn" style="--hover-color:var(--accent-Cn)" onclick="setCn(2)">C₂ (180°)</button>
+      <button class="btn" style="--hover-color:var(--accent-Cn)" onclick="setCn(3)">C₃ (120°)</button>
+      <button class="btn" style="--hover-color:var(--accent-Cn)" onclick="setCn(4)">C₄ (90°)</button>
+      <button class="btn" style="--hover-color:var(--accent-Cn)" onclick="setCn(6)">C₆ (60°)</button>
+      <button class="btn primary" style="--primary-color:var(--accent-Cn)" onclick="animCn()">회전 실행</button>
+    </div>
+  </div>
+  <div class="examples-grid">
+    <div class="example-card">
+      <div class="molecule">H₂O</div>
+      <div class="mol-desc">C₂ (180°) — 주축<br><span class="badge">C₂ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">NH₃</div>
+      <div class="mol-desc">C₃ (120°), C₃² (240°)<br><span class="badge">C₃ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">BF₃</div>
+      <div class="mol-desc">C₃ 주축 보유<br><span class="badge">D₃ₕ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">벤젠 C₆H₆</div>
+      <div class="mol-desc">C₆, C₃, C₂ 다수<br><span class="badge">D₆ₕ</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== sigma ===== -->
+<div id="tab-sigma" class="content">
+  <div class="section-header">
+    <span class="sym-label" style="color:var(--accent-sigma)">σ</span>
+    <span class="sym-name">반사 (Reflection)</span>
+  </div>
+  <div class="desc-box">
+    <strong>거울면(mirror plane)</strong>에 대한 반사입니다. 분자를 면에 대해 뒤집어도 구별 불가능.<br><br>
+    <strong>σₕ (수평면)</strong>: 주축에 <em>수직</em>인 거울면 &nbsp;|&nbsp;
+    <strong>σᵥ (수직면)</strong>: 주축을 <em>포함</em>하는 거울면 &nbsp;|&nbsp;
+    <strong>σd (이면각)</strong>: C₂ 축을 이등분하는 대각선 거울면
+    <div class="rule">σ² = E &nbsp;(두 번 반사하면 원래로)</div>
+  </div>
+  <div class="viz-area">
+    <canvas id="cvSigma" width="500" height="300"></canvas>
+    <div class="controls">
+      <span class="step-indicator" id="stepSigma">σᵥ 선택됨</span>
+      <button class="btn" style="--hover-color:var(--accent-sigma)" onclick="setSigma('v')">σᵥ (수직면)</button>
+      <button class="btn" style="--hover-color:var(--accent-sigma)" onclick="setSigma('h')">σₕ (수평면)</button>
+      <button class="btn" style="--hover-color:var(--accent-sigma)" onclick="setSigma('d')">σd (이면각)</button>
+      <button class="btn primary" style="--primary-color:var(--accent-sigma)" onclick="animSigma()">반사 실행</button>
+    </div>
+  </div>
+  <div class="examples-grid">
+    <div class="example-card">
+      <div class="molecule">H₂O</div>
+      <div class="mol-desc">σᵥ 2개 보유<br><span class="badge">C₂ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">NH₃</div>
+      <div class="mol-desc">σᵥ 3개 보유<br><span class="badge">C₃ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">BF₃</div>
+      <div class="mol-desc">σₕ + 3σᵥ<br><span class="badge">D₃ₕ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">카르본</div>
+      <div class="mol-desc">σ 없음 → 키랄 분자!<br><span class="badge">C₁</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== i ===== -->
+<div id="tab-i" class="content">
+  <div class="section-header">
+    <span class="sym-label" style="color:var(--accent-i)">i</span>
+    <span class="sym-name">반전 (Inversion)</span>
+  </div>
+  <div class="desc-box">
+    분자의 <strong>무게중심(중심점)</strong>을 기준으로 모든 원자를 정반대 위치로 이동합니다.<br>
+    원자 좌표 (x, y, z)가 (-x, -y, -z)로 변환됩니다.
+    <div class="rule">(x, y, z) → (−x, −y, −z) &nbsp;&nbsp; i² = E</div>
+  </div>
+  <div class="viz-area">
+    <canvas id="cvI" width="500" height="300"></canvas>
+    <div class="controls">
+      <span class="step-indicator" id="stepI">대기 중</span>
+      <button class="btn primary" style="--primary-color:var(--accent-i)" onclick="animI()">반전 실행</button>
+      <button class="btn" style="--hover-color:var(--accent-i)" onclick="resetI()">초기화</button>
+    </div>
+  </div>
+  <div class="examples-grid">
+    <div class="example-card">
+      <div class="molecule">SF₆</div>
+      <div class="mol-desc">반전 중심 있음<br><span class="badge">Oₕ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">벤젠</div>
+      <div class="mol-desc">반전 중심 있음<br><span class="badge">D₆ₕ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">H₂O</div>
+      <div class="mol-desc">반전 중심 없음<br><span class="badge">C₂ᵥ</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">CH₄</div>
+      <div class="mol-desc">반전 중심 없음<br><span class="badge">Td</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Sn ===== -->
+<div id="tab-Sn" class="content">
+  <div class="section-header">
+    <span class="sym-label" style="color:var(--accent-Sn)">Sₙ</span>
+    <span class="sym-name">부적합 회전 (Improper Rotation)</span>
+  </div>
+  <div class="desc-box">
+    <strong>두 단계</strong>를 연속으로 수행하는 복합 조작입니다:<br>
+    <strong>① Cₙ 회전 (360°/n)</strong> → <strong>② σₕ 반사 (주축에 수직인 면으로)</strong><br><br>
+    특수한 경우: <strong>S₁ = σ</strong> (반사와 동일), <strong>S₂ = i</strong> (반전과 동일)
+    <div class="rule">Sₙ = σₕ ∘ Cₙ &nbsp;&nbsp; (회전 후 수평 반사)</div>
+  </div>
+  <div class="viz-area">
+    <canvas id="cvSn" width="500" height="310"></canvas>
+    <div class="controls">
+      <span class="step-indicator" id="stepSn">S₄ 선택됨 (90° 회전 후 반사)</span>
+      <button class="btn" style="--hover-color:var(--accent-Sn)" onclick="setSn(4)">S₄</button>
+      <button class="btn" style="--hover-color:var(--accent-Sn)" onclick="setSn(6)">S₆</button>
+      <button class="btn primary" style="--primary-color:var(--accent-Sn)" onclick="animSn('step1')">① 회전만</button>
+      <button class="btn primary" style="--primary-color:var(--accent-Sn)" onclick="animSn('step2')">② 반사만</button>
+      <button class="btn" style="--hover-color:var(--accent-Sn)" onclick="resetSn()">초기화</button>
+    </div>
+  </div>
+  <div class="examples-grid">
+    <div class="example-card">
+      <div class="molecule">CH₄</div>
+      <div class="mol-desc">S₄ 보유<br><span class="badge">Td</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">알렌</div>
+      <div class="mol-desc">S₄ 보유<br><span class="badge">D₂d</span></div>
+    </div>
+    <div class="example-card">
+      <div class="molecule">스태거드 에탄</div>
+      <div class="mol-desc">S₆ 보유<br><span class="badge">D₃d</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Utilities ────────────────────────────────────────────────────────────────
+const PI = Math.PI;
+const colors = {
+  E: '#58a6ff', Cn: '#3fb950', sigma: '#d2a8ff', i: '#ff7b72', Sn: '#ffa657',
+  bg: '#161b22', bg2: '#21262d', border: '#30363d', text: '#e6edf3', muted: '#7d8590'
+};
+
+function circle(ctx, x, y, r, fill, stroke, sw=1.5) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 2*PI);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
+}
+
+function label(ctx, text, x, y, color='#e6edf3', size=13, font='JetBrains Mono') {
+  ctx.fillStyle = color; ctx.font = `${size}px '${font}', monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+}
+
+function arrow(ctx, x1, y1, x2, y2, color, width=1.5) {
+  const dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx+dy*dy);
+  const nx = dx/len, ny = dy/len;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+  const hs = 8;
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hs*(nx - 0.5*ny), y2 - hs*(ny + 0.5*nx));
+  ctx.lineTo(x2 - hs*(nx + 0.5*ny), y2 - hs*(ny - 0.5*nx));
+  ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+}
+
+function lerp(a, b, t) { return a + (b-a)*t; }
+function easeInOut(t) { return t<0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+// ─── Tab Switching ─────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'E') drawE();
+  if (name === 'Cn') drawCn();
+  if (name === 'sigma') drawSigma();
+  if (name === 'i') drawI();
+  if (name === 'Sn') drawSn();
+}
+
+// ─────────────── E — 항등 조작 ───────────────────────────────────────────────
+let eAnimating = false;
+function getCtxE() { return document.getElementById('cvE').getContext('2d'); }
+
+function drawE(phase=0) {
+  const ctx = getCtxE(), W=500, H=260, cx=250, cy=130;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = colors.bg; ctx.fillRect(0,0,W,H);
+
+  // 물 분자 H2O 모양
+  const atoms = [
+    { x: cx, y: cy-30, r: 18, fill: '#c0392b', lbl: 'O', lbl_color: '#fff' },
+    { x: cx-55, y: cy+30, r: 13, fill: '#3498db', lbl: 'H', lbl_color: '#fff' },
+    { x: cx+55, y: cy+30, r: 13, fill: '#3498db', lbl: 'H', lbl_color: '#fff' },
+  ];
+
+  // bonds
+  ctx.lineWidth = 3; ctx.strokeStyle = colors.muted;
+  ctx.beginPath(); ctx.moveTo(atoms[0].x, atoms[0].y); ctx.lineTo(atoms[1].x, atoms[1].y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(atoms[0].x, atoms[0].y); ctx.lineTo(atoms[2].x, atoms[2].y); ctx.stroke();
+
+  atoms.forEach(a => {
+    circle(ctx, a.x, a.y, a.r, a.fill, '#fff', 1.5);
+    label(ctx, a.lbl, a.x, a.y, a.lbl_color, 11);
+  });
+
+  // Flash if phase > 0
+  if (phase > 0 && phase < 1) {
+    ctx.globalAlpha = 0.35 * Math.sin(phase*PI);
+    ctx.fillStyle = colors.E;
+    ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha = 1;
+  }
+
+  // Labels
+  label(ctx, 'H₂O — E 조작 전/후 동일', cx, H-20, colors.muted, 12, 'Noto Sans KR');
+  if (phase > 0.5) {
+    ctx.fillStyle = colors.E; ctx.font = "bold 14px 'Noto Sans KR'"; ctx.textAlign='center';
+    ctx.fillText('변화 없음 (identical)', cx, 30);
+  }
+}
+
+function animE() {
+  if (eAnimating) return;
+  eAnimating = true;
+  document.getElementById('stepE').textContent = '실행 중…';
+  let t = 0;
+  const run = () => {
+    t += 0.025; drawE(t);
+    if (t < 1) requestAnimationFrame(run);
+    else {
+      drawE(1); eAnimating = false;
+      document.getElementById('stepE').textContent = '완료: 조작 전 = 조작 후';
+    }
+  };
+  requestAnimationFrame(run);
+}
+
+function resetE() { drawE(0); document.getElementById('stepE').textContent = '대기 중'; }
+
+// ─────────────── Cn — 회전 ───────────────────────────────────────────────────
+let cnN = 3, cnAngle = 0, cnAnimating = false;
+function getCtxCn() { return document.getElementById('cvCn').getContext('2d'); }
+
+function setCn(n) {
+  cnN = n; cnAngle = 0;
+  document.getElementById('stepCn').textContent = `C${n} 선택됨 (${(360/n).toFixed(0)}° 회전)`;
+  drawCn();
+}
+
+function drawCn(extraAngle=0) {
+  const ctx = getCtxCn(), W=500, H=280, cx=250, cy=148;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle = colors.bg; ctx.fillRect(0,0,W,H);
+
+  const n = cnN;
+  const R = 80;
+  const targetAngle = extraAngle;
+  const baseAngle = -PI/2; // start top
+
+  // Draw axis
+  ctx.setLineDash([4,4]);
+  ctx.strokeStyle = colors.muted; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx, cy-110); ctx.lineTo(cx, cy+110); ctx.stroke();
+  ctx.setLineDash([]);
+  label(ctx, 'Cₙ 주축', cx+28, cy-90, colors.muted, 11);
+
+  // Draw rotation arc
+  if (targetAngle !== 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R+20, baseAngle, baseAngle + targetAngle, targetAngle > 0);
+    ctx.strokeStyle = colors.Cn + '88'; ctx.lineWidth = 2; ctx.stroke();
+    // angle label
+    const mid = baseAngle + targetAngle/2;
+    label(ctx, `${Math.round(targetAngle*180/PI)}°`, cx+(R+35)*Math.cos(mid), cy+(R+35)*Math.sin(mid), colors.Cn, 12);
+  }
+
+  // Draw polygon vertices
+  const colors_atom = ['#e74c3c','#3498db','#e67e22','#9b59b6','#1abc9c','#f39c12'];
+  const labels_v = ['1','2','3','4','5','6'];
+
+  for (let k=0; k<n; k++) {
+    const baseA = baseAngle + (2*PI/n)*k;
+    const rotA  = baseA + targetAngle;
+    const x = cx + R*Math.cos(rotA), y = cy + R*Math.sin(rotA);
+    // faint original position
+    const ox = cx + R*Math.cos(baseA), oy = cy + R*Math.sin(baseA);
+    if (targetAngle !== 0) {
+      circle(ctx, ox, oy, 13, 'transparent', colors_atom[k]+'44', 1.5);
+      label(ctx, labels_v[k], ox, oy, colors_atom[k]+'66', 11);
+    }
+    circle(ctx, x, y, 14, colors_atom[k], '#fff', 1.5);
+    label(ctx, labels_v[k], x, y, '#fff', 11);
+  }
+
+  // center
+  circle(ctx, cx, cy, 5, colors.muted, 'transparent');
+  label(ctx, `C${n} (${(360/n).toFixed(0)}°)`, cx, 25, colors.Cn, 13);
+  label(ctx, '점선 = 원래 위치  |  실선 = 회전 후', cx, H-18, colors.muted, 11, 'Noto Sans KR');
+}
+
+function animCn() {
+  if (cnAnimating) return; cnAnimating = true;
+  const target = 2*PI/cnN;
+  let t = 0;
+  const run = () => {
+    t += 0.02;
+    const angle = easeInOut(Math.min(t,1)) * target;
+    drawCn(angle);
+    if (t < 1) requestAnimationFrame(run);
+    else {
+      cnAnimating = false;
+      document.getElementById('stepCn').textContent = `완료: ${(360/cnN).toFixed(0)}° 회전 → 구별 불가`;
+    }
+  };
+  requestAnimationFrame(run);
+}
+
+// ─────────────── σ — 반사 ───────────────────────────────────────────────────
+let sigmaType = 'v', sigmaAnimating = false;
+function getCtxSigma() { return document.getElementById('cvSigma').getContext('2d'); }
+
+function setSigma(type) {
+  sigmaType = type;
+  const names = { v:'σᵥ (수직면)', h:'σₕ (수평면)', d:'σd (이면각)' };
+  document.getElementById('stepSigma').textContent = names[type] + ' 선택됨';
+  drawSigma(0);
+}
+
+function drawSigma(phase=0) {
+  const ctx = getCtxSigma(), W=500, H=300, cx=250, cy=150;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle = colors.bg; ctx.fillRect(0,0,W,H);
+
+  const R = 75;
+  const type = sigmaType;
+
+  // Mirror plane line
+  ctx.save();
+  ctx.setLineDash([6,4]);
+  ctx.lineWidth = 2; ctx.strokeStyle = colors.sigma + 'cc';
+  if (type === 'v') {
+    ctx.beginPath(); ctx.moveTo(cx, cy-120); ctx.lineTo(cx, cy+120); ctx.stroke();
+    label(ctx, 'σᵥ (거울면)', cx+55, cy-100, colors.sigma, 12);
+  } else if (type === 'h') {
+    ctx.beginPath(); ctx.moveTo(cx-180, cy); ctx.lineTo(cx+180, cy); ctx.stroke();
+    label(ctx, 'σₕ (거울면)', cx+110, cy-14, colors.sigma, 12);
+  } else {
+    ctx.beginPath(); ctx.moveTo(cx-100, cy-100); ctx.lineTo(cx+100, cy+100); ctx.stroke();
+    label(ctx, 'σd (이면각)', cx+80, cy+80, colors.sigma, 12);
+  }
+  ctx.restore();
+  ctx.setLineDash([]);
+
+  // Molecule: triangle of 3 atoms
+  const baseAtoms = [
+    { x: cx,     y: cy-R,    lbl: '1', c: '#e74c3c' },
+    { x: cx-R*0.87, y: cy+R*0.5, lbl: '2', c: '#3498db' },
+    { x: cx+R*0.87, y: cy+R*0.5, lbl: '3', c: '#e67e22' },
+  ];
+
+  function reflect(pt) {
+    if (type === 'v') return { x: 2*cx - pt.x, y: pt.y };
+    if (type === 'h') return { x: pt.x, y: 2*cy - pt.y };
+    // σd: reflect over y=-x line through center
+    const dx = pt.x-cx, dy = pt.y-cy;
+    return { x: cx+dy, y: cy+dx };
+  }
+
+  const t = easeInOut(Math.max(0, Math.min(1, phase)));
+
+  baseAtoms.forEach(a => {
+    const ref = reflect(a);
+    const rx = lerp(a.x, ref.x, t), ry = lerp(a.y, ref.y, t);
+    // ghost
+    if (t > 0.05) {
+      circle(ctx, a.x, a.y, 14, 'transparent', a.c+'44', 1.5);
+      label(ctx, a.lbl, a.x, a.y, a.c+'55', 11);
+    }
+    circle(ctx, rx, ry, 15, a.c, '#fff', 2);
+    label(ctx, a.lbl, rx, ry, '#fff', 11);
+  });
+
+  // center dot
+  circle(ctx, cx, cy, 4, colors.muted, 'transparent');
+  const typeNames = { v:'σᵥ — 수직 거울면', h:'σₕ — 수평 거울면', d:'σd — 이면각 거울면' };
+  label(ctx, typeNames[type], cx, 22, colors.sigma, 13, 'Noto Sans KR');
+  label(ctx, '점선 = 원래 위치  |  실선 = 반사 후', cx, H-16, colors.muted, 11, 'Noto Sans KR');
+}
+
+function animSigma() {
+  if (sigmaAnimating) return; sigmaAnimating = true;
+  let t = 0;
+  const run = () => {
+    t += 0.025; drawSigma(t);
+    if (t < 1) requestAnimationFrame(run);
+    else {
+      sigmaAnimating = false;
+      document.getElementById('stepSigma').textContent = '완료: 반사 후 구별 불가';
+    }
+  };
+  requestAnimationFrame(run);
+}
+
+// ─────────────── i — 반전 ───────────────────────────────────────────────────
+let iAnimating = false;
+function getCtxI() { return document.getElementById('cvI').getContext('2d'); }
+
+function drawI(phase=0) {
+  const ctx = getCtxI(), W=500, H=300, cx=250, cy=150;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle = colors.bg; ctx.fillRect(0,0,W,H);
+
+  // Axis guides
+  ctx.save(); ctx.setLineDash([3,4]); ctx.lineWidth=1; ctx.strokeStyle=colors.muted+'66';
+  ctx.beginPath(); ctx.moveTo(cx-180,cy); ctx.lineTo(cx+180,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx,cy-120); ctx.lineTo(cx,cy+120); ctx.stroke();
+  ctx.restore(); ctx.setLineDash([]);
+  label(ctx,'x',cx+175,cy-12,colors.muted,11); label(ctx,'y',cx+10,cy-115,colors.muted,11);
+
+  // Inversion center
+  circle(ctx, cx, cy, 6, colors.i, 'transparent');
+  label(ctx, 'i', cx+15, cy-15, colors.i, 12);
+
+  // Octahedral: 6 atoms (SF6-like simplification in 2D)
+  const baseAtoms = [
+    { x: cx-95, y: cy, lbl: 'A', c: '#e74c3c' },
+    { x: cx+95, y: cy, lbl: 'A', c: '#e74c3c' },
+    { x: cx, y: cy-80, lbl: 'B', c: '#3498db' },
+    { x: cx, y: cy+80, lbl: 'B', c: '#3498db' },
+    { x: cx-60, y: cy-55, lbl: 'C', c: '#e67e22' },
+    { x: cx+60, y: cy+55, lbl: 'C', c: '#e67e22' },
+  ];
+
+  const t = easeInOut(Math.max(0, Math.min(1, phase)));
+
+  baseAtoms.forEach(a => {
+    // inversion: (x-cx) -> -(x-cx)
+    const ix = cx - (a.x-cx), iy = cy - (a.y-cy);
+    const rx = lerp(a.x, ix, t), ry = lerp(a.y, iy, t);
+    if (t > 0.05) {
+      circle(ctx, a.x, a.y, 13, 'transparent', a.c+'44', 1.5);
+    }
+    // line to inverted
+    if (t > 0 && t < 0.95) {
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(rx,ry);
+      ctx.strokeStyle = a.c+'55'; ctx.lineWidth=1; ctx.stroke();
+    }
+    circle(ctx, rx, ry, 14, a.c, '#fff', 1.5);
+    label(ctx, a.lbl, rx, ry, '#fff', 10);
+  });
+
+  label(ctx, 'i — 반전 조작  (x,y,z) → (−x,−y,−z)', cx, 22, colors.i, 13, 'Noto Sans KR');
+  label(ctx, '각 원자가 중심점을 통해 정반대 위치로 이동', cx, H-16, colors.muted, 11, 'Noto Sans KR');
+}
+
+function animI() {
+  if (iAnimating) return; iAnimating = true;
+  document.getElementById('stepI').textContent = '실행 중…';
+  let t = 0;
+  const run = () => {
+    t += 0.022; drawI(t);
+    if (t < 1) requestAnimationFrame(run);
+    else {
+      iAnimating = false;
+      document.getElementById('stepI').textContent = '완료: (x,y,z) → (−x,−y,−z)';
+    }
+  };
+  requestAnimationFrame(run);
+}
+
+function resetI() { drawI(0); document.getElementById('stepI').textContent = '대기 중'; }
+
+// ─────────────── Sn — 부적합 회전 ───────────────────────────────────────────
+let snN = 4, snState = 0, snAnimating = false;
+function getCtxSn() { return document.getElementById('cvSn').getContext('2d'); }
+
+function setSn(n) {
+  snN = n; snState = 0;
+  document.getElementById('stepSn').textContent = `S${n} 선택됨 (${(360/n).toFixed(0)}° 회전 후 σₕ 반사)`;
+  drawSn(0,0);
+}
+
+function drawSn(rotAngle=0, flipPhase=0) {
+  const ctx = getCtxSn(), W=500, H=310, cx=250, cy=155;
+  ctx.clearRect(0,0,W,H); ctx.fillStyle = colors.bg; ctx.fillRect(0,0,W,H);
+
+  const n = snN;
+  const R = 75;
+
+  // Horizontal mirror plane (σₕ)
+  ctx.save(); ctx.setLineDash([6,4]); ctx.lineWidth=1.5; ctx.strokeStyle=colors.sigma+'88';
+  ctx.beginPath(); ctx.moveTo(cx-180,cy); ctx.lineTo(cx+180,cy); ctx.stroke();
+  ctx.restore(); ctx.setLineDash([]);
+  label(ctx, 'σₕ', cx+185, cy-12, colors.sigma, 12);
+
+  // Rotation axis
+  ctx.save(); ctx.setLineDash([3,4]); ctx.lineWidth=1; ctx.strokeStyle=colors.muted+'66';
+  ctx.beginPath(); ctx.moveTo(cx,cy-120); ctx.lineTo(cx,cy+120); ctx.stroke();
+  ctx.restore(); ctx.setLineDash([]);
+  label(ctx,'Cₙ',cx+12,cy-115,colors.muted,11);
+
+  const nAtoms = n;
+  const aColors = ['#e74c3c','#3498db','#e67e22','#9b59b6'];
+  const baseAngle = -PI/2;
+
+  // Atoms above plane initially
+  const ySign = flipPhase < 0.5 ? 1 : -1;
+  const flipT = easeInOut(Math.min(1, flipPhase * 2));
+  const currentYSign = lerp(1, -1, flipPhase < 0.5 ? 0 : flipT);
+
+  for (let k=0; k<nAtoms; k++) {
+    const origA = baseAngle + (2*PI/nAtoms)*k;
+    const rotA  = origA + rotAngle;
+    const x = cx + R*Math.cos(rotA);
+    const yBase = 45; // offset above center
+    const y = cy - yBase * (flipPhase < 0.5 ? 1 : lerp(1,-1, easeInOut((flipPhase-0.5)*2)));
+
+    // ghost
+    if (rotAngle !== 0 || flipPhase !== 0) {
+      const ox = cx + R*Math.cos(origA), oy = cy - 45;
+      circle(ctx, ox, oy, 13, 'transparent', aColors[k%4]+'44', 1.5);
+    }
+    circle(ctx, x, y, 14, aColors[k%4], '#fff', 1.5);
+    label(ctx, String(k+1), x, y, '#fff', 10);
+  }
+
+  const stepDesc = rotAngle === 0 && flipPhase === 0 ? '대기' :
+                   flipPhase === 0 ? `① C${n} 회전 (${(rotAngle*180/PI).toFixed(0)}°)` :
+                   `② σₕ 반사 진행 중`;
+  label(ctx, `S${n} = σₕ ∘ C${n}  |  ${stepDesc}`, cx, 22, colors.Sn, 13, 'Noto Sans KR');
+  label(ctx, '1단계: 회전 → 2단계: 수평 반사', cx, H-16, colors.muted, 11, 'Noto Sans KR');
+}
+
+function animSn(step) {
+  if (snAnimating) return; snAnimating = true;
+  const target = 2*PI/snN;
+  let t = 0;
+
+  if (step === 'step1') {
+    snState = 0;
+    document.getElementById('stepSn').textContent = '① Cₙ 회전 진행 중…';
+    const run = () => {
+      t += 0.025;
+      const angle = easeInOut(Math.min(t,1)) * target;
+      drawSn(angle, 0);
+      if (t < 1) requestAnimationFrame(run);
+      else {
+        snState = target;
+        snAnimating = false;
+        document.getElementById('stepSn').textContent = `① 완료: ${(360/snN).toFixed(0)}° 회전됨 — 이제 ② 반사 실행`;
+      }
+    };
+    requestAnimationFrame(run);
+  } else {
+    document.getElementById('stepSn').textContent = '② σₕ 반사 진행 중…';
+    const curAngle = snState;
+    const run2 = () => {
+      t += 0.025;
+      drawSn(curAngle, Math.min(t,1));
+      if (t < 1) requestAnimationFrame(run2);
+      else {
+        snAnimating = false;
+        document.getElementById('stepSn').textContent = `S${snN} 완료: 회전 후 반사`;
+      }
+    };
+    requestAnimationFrame(run2);
+  }
+}
+
+function resetSn() {
+  snState = 0; drawSn(0,0);
+  document.getElementById('stepSn').textContent = `S${snN} 선택됨 — ① 회전부터 시작하세요`;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.onload = () => { drawE(); };
+</script>
+</body>
+</html>
