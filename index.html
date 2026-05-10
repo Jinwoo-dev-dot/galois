@@ -364,6 +364,7 @@
       <button class="btn" style="--hover-color:var(--accent-sigma)" onclick="setSigma('h')">σₕ (수평면)</button>
       <button class="btn" style="--hover-color:var(--accent-sigma)" onclick="setSigma('d')">σd (이면각)</button>
       <button class="btn primary" style="--primary-color:var(--accent-sigma)" onclick="animSigma()">반사 실행</button>
+      <button class="btn" style="--hover-color:var(--accent-sigma)" onclick="resetSigma()">초기화</button>
     </div>
   </div>
   <div class="examples-grid">
@@ -685,17 +686,34 @@ function drawSigma(phase=0) {
   ctx.restore();
   ctx.setLineDash([]);
 
-  // Molecule: triangle of 3 atoms
-  const baseAtoms = [
-    { x: cx,     y: cy-R,    lbl: '1', c: '#e74c3c' },
-    { x: cx-R*0.87, y: cy+R*0.5, lbl: '2', c: '#3498db' },
-    { x: cx+R*0.87, y: cy+R*0.5, lbl: '3', c: '#e67e22' },
-  ];
+  // Molecule: 비대칭 원자 배치 (반사 전후가 명확히 다르게)
+  // σᵥ (수직선 기준): 좌우로 치우친 배치
+  // σₕ (수평선 기준): 위아래로 치우친 배치
+  // σd (대각선 기준): 대각선 반대쪽으로 치우친 배치
+  let baseAtoms;
+  if (type === 'v') {
+    baseAtoms = [
+      { x: cx-55, y: cy-55, lbl: '1', c: '#e74c3c' },
+      { x: cx-70, y: cy+30, lbl: '2', c: '#3498db' },
+      { x: cx-20, y: cy+65, lbl: '3', c: '#e67e22' },
+    ];
+  } else if (type === 'h') {
+    baseAtoms = [
+      { x: cx-60, y: cy-55, lbl: '1', c: '#e74c3c' },
+      { x: cx+20, y: cy-70, lbl: '2', c: '#3498db' },
+      { x: cx+65, y: cy-25, lbl: '3', c: '#e67e22' },
+    ];
+  } else {
+    baseAtoms = [
+      { x: cx-70, y: cy-20, lbl: '1', c: '#e74c3c' },
+      { x: cx-30, y: cy-65, lbl: '2', c: '#3498db' },
+      { x: cx+60, y: cy-50, lbl: '3', c: '#e67e22' },
+    ];
+  }
 
   function reflect(pt) {
     if (type === 'v') return { x: 2*cx - pt.x, y: pt.y };
     if (type === 'h') return { x: pt.x, y: 2*cy - pt.y };
-    // σd: reflect over y=-x line through center
     const dx = pt.x-cx, dy = pt.y-cy;
     return { x: cx+dy, y: cy+dx };
   }
@@ -705,7 +723,7 @@ function drawSigma(phase=0) {
   baseAtoms.forEach(a => {
     const ref = reflect(a);
     const rx = lerp(a.x, ref.x, t), ry = lerp(a.y, ref.y, t);
-    // ghost
+    // ghost (원래 위치)
     if (t > 0.05) {
       circle(ctx, a.x, a.y, 14, 'transparent', a.c+'44', 1.5);
       label(ctx, a.lbl, a.x, a.y, a.c+'55', 11);
